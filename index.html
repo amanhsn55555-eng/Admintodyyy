@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم المركزية</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: linear-gradient(145deg, #f8fafc, #e2e8f0);
+      --card-shadow: inset 2px 2px 5px #ffffff, inset -2px -2px 5px #94a3b8, 3px 3px 8px rgba(0,0,0,0.1), -1px -1px 4px rgba(255,255,255,0.6);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', 'Tajawal', sans-serif; }
+    
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* الهيدر */
+    .header {
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border-radius: 25px;
+      margin: 10px 10px 0;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-size: 19px; font-weight: 800; }
+    .header button {
+      background: #ef4444; color: #fff; border: none;
+      padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer;
+    }
+
+    /* الشبكة */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .card-btn {
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border: none;
+      border-radius: 22px;
+      padding: 18px 10px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      transition: 0.2s;
+    }
+    .card-btn:hover { transform: translateY(-3px); filter: brightness(0.98); }
+    .card-btn i { font-size: 26px; color: #fbbf24; }
+
+    /* مودال */
+    .modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+      z-index: 999; display: none; align-items: center; justify-content: center;
+    }
+    .modal.show { display: flex; }
+    .modal-box {
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border-radius: 28px;
+      padding: 22px 16px;
+      width: 92%;
+      max-width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-box h3 { margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+    .modal-box label { display: block; margin: 10px 0 4px; font-weight: 700; font-size: 13px; }
+    .modal-box input, .modal-box select, .modal-box textarea {
+      width: 100%; padding: 11px; border-radius: 14px; border: 2px solid #e2e8f0;
+      background: #fff; font-size: 13px; margin-bottom: 4px;
+    }
+    .close-modal {
+      position: absolute; top: 10px; left: 14px;
+      background: none; border: none; font-size: 22px; cursor: pointer; color: #64748b;
+    }
+
+    /* تبديل */
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+    .toggle {
+      position: relative; width: 48px; height: 26px; display: inline-block;
+    }
+    .toggle input { display: none; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: #cbd5e1; border-radius: 26px;
+      cursor: pointer; transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 20px; height: 20px;
+      background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: 0.3s;
+    }
+    input:checked + .toggle-slider { background: #10b981; }
+    input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    .btn-save {
+      width: 100%; padding: 12px; border: none; border-radius: 22px;
+      background: #10b981; color: #fff; font-weight: bold; cursor: pointer; margin-top: 12px;
+    }
+    .btn-danger { background: #ef4444 !important; }
+
+    .list-item {
+      background: #fff; border-radius: 14px; padding: 10px; margin: 6px 0;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .list-item button {
+      background: #ef4444; color: #fff; border: none;
+      padding: 5px 10px; border-radius: 14px; cursor: pointer; font-size: 11px;
+    }
+
+    #toast {
+      position: fixed; bottom: 20px; left: 20px; right: 20px;
+      text-align: center; background: #1e293b; color: #fff;
+      padding: 13px; border-radius: 35px; z-index: 9999;
+      opacity: 0; transition: 0.3s; pointer-events: none;
+      max-width: 380px; margin: auto; font-weight: 600;
+    }
+    #toast.show { opacity: 1; bottom: 32px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1><i class="fas fa-crown" style="color:#fbbf24; margin-left:6px;"></i> لوحة التحكم</h1>
+  <button onclick="signOut(auth)"><i class="fas fa-sign-out-alt"></i> خروج</button>
+</div>
+
+<div class="grid" id="mainGrid"></div>
+<div id="toast"></div>
+
+<!-- المودال -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <button class="close-modal" onclick="closeModal()">&times;</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, query, where, writeBatch, addDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+  // ========== إعدادات Firebase ==========
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPBrZMo6IYCwCDYV3HEfNcUmLUITR6VRc",
+    authDomain: "elahbes.firebaseapp.com",
+    projectId: "elahbes",
+    storageBucket: "elahbes.firebasestorage.app",
+    messagingSenderId: "800207969145",
+    appId: "1:800207969145:web:aa19b725d1c92dd48fada8",
+    measurementId: "G-EFT566SJMP"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  window.auth = auth;
+  window.db = db;
+
+  const ADMIN_EMAILS = ['ad5@5.com', 'admin@admin.com', 'hsn5@H.com'];
+
+  // ========== دوال مساعدة ==========
+  function toast(msg, ok = true) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = ok ? '#10b981' : '#ef4444';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+  window.closeModal = () => document.getElementById('modal').classList.remove('show');
+  
+  function openModalHTML(html) {
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.add('show');
+  }
+
+  // قراءة/كتابة الإعدادات من Firestore
+  // المفتاح: نستخدم collection "admin_settings" و doc id = المفتاح
+  async function getSet(key, fallback) {
+    try {
+      const snap = await getDoc(doc(db, "admin_settings", key));
+      return snap.exists() ? snap.data().value : fallback;
+    } catch(e) { return fallback; }
+  }
+  async function setSet(key, value) {
+    await setDoc(doc(db, "admin_settings", key), { value, updatedAt: Date.now() });
+  }
+
+  // ========== الألواح ==========
+  const panels = [
+    { id: 'regResources', i: 'fa-coins', t: '💰 عملات الحساب الجديد' },
+    { id: 'regRestrict', i: 'fa-lock', t: '🔒 قيود التسجيل' },
+    { id: 'regToggle', i: 'fa-user-check', t: '🚪 إيقاف/تشغيل التسجيل' },
+    { id: 'postControl', i: 'fa-newspaper', t: '📰 التحكم بالمنشورات' },
+    { id: 'commentControl', i: 'fa-comments', t: '💬 حذف التعليقات' },
+    { id: 'storyControl', i: 'fa-clock', t: '⏰ التحكم بالقصص' },
+    { id: 'roomControl', i: 'fa-door-open', t: '🚪 التحكم بالغرف' },
+    { id: 'shopControl', i: 'fa-store', t: '🛒 إدارة المتجر' },
+    { id: 'oilControl', i: 'fa-oil-can', t: '🛢️ حذف الآبار' },
+    { id: 'richControl', i: 'fa-crown', t: '👑 تصفير الأثرياء' },
+    { id: 'walletControl', i: 'fa-wallet', t: '💳 تعديل المحافظ' },
+    { id: 'userControl', i: 'fa-users', t: '👥 حظر/حذف الأعضاء' },
+    { id: 'chatControl', i: 'fa-sms', t: '💭 حذف المحادثات' },
+    { id: 'notifControl', i: 'fa-bell', t: '🔔 إشعار عام' },
+    { id: 'projectControl', i: 'fa-project-diagram', t: '📋 حذف المشاريع' },
+    { id: 'ddoControl', i: 'fa-gem', t: '💎 إعدادات DDO' }
+  ];
+
+  function renderGrid() {
+    document.getElementById('mainGrid').innerHTML = panels.map(p => `
+      <button class="card-btn" onclick="openPanel('${p.id}')">
+        <i class="fas ${p.i}"></i>
+        <span>${p.t}</span>
+      </button>
+    `).join('');
+  }
+
+  window.openPanel = async (id) => {
+    switch(id) {
+      case 'regResources': await pRegResources(); break;
+      case 'regRestrict': await pRegRestrict(); break;
+      case 'regToggle': await pRegToggle(); break;
+      case 'postControl': await pPostControl(); break;
+      case 'commentControl': await pCommentControl(); break;
+      case 'storyControl': await pStoryControl(); break;
+      case 'roomControl': await pRoomControl(); break;
+      case 'shopControl': await pShopControl(); break;
+      case 'oilControl': await pOilControl(); break;
+      case 'richControl': await pRichControl(); break;
+      case 'walletControl': await pWalletControl(); break;
+      case 'userControl': await pUserControl(); break;
+      case 'chatControl': await pChatControl(); break;
+      case 'notifControl': await pNotifControl(); break;
+      case 'projectControl': await pProjectControl(); break;
+      case 'ddoControl': await pDdoControl(); break;
+    }
+  };
+
+  // 1) عملات الحساب الجديد
+  async function pRegResources() {
+    const m = await getSet('default_money', 1000);
+    const g = await getSet('default_gold', 10);
+    const e = await getSet('default_elixir', 10);
+    const o = await getSet('default_oil', 10);
+    const d = await getSet('default_ddo', 0);
+    openModalHTML(`
+      <h3>💰 عملات الحساب الجديد</h3>
+      <label>المال</label><input id="v1" type="number" value="${m}">
+      <label>الذهب</label><input id="v2" type="number" value="${g}">
+      <label>الإكسير</label><input id="v3" type="number" value="${e}">
+      <label>النفط</label><input id="v4" type="number" value="${o}">
+      <label>DDO</label><input id="v5" type="number" value="${d}">
+      <button class="btn-save" onclick="saveRegResources()">حفظ</button>
+    `);
+  }
+  window.saveRegResources = async () => {
+    await setSet('default_money', +document.getElementById('v1').value);
+    await setSet('default_gold', +document.getElementById('v2').value);
+    await setSet('default_elixir', +document.getElementById('v3').value);
+    await setSet('default_oil', +document.getElementById('v4').value);
+    await setSet('default_ddo', +document.getElementById('v5').value);
+    toast('✅ تم حفظ العملات الافتراضية');
+    closeModal();
+  };
+
+  // 2) قيود التسجيل
+  async function pRegRestrict() {
+    const me = await getSet('min_email_len', 5);
+    const mp = await getSet('min_pass_len', 6);
+    const bp = (await getSet('banned_passwords', [])).join(', ');
+    openModalHTML(`
+      <h3>🔒 قيود التسجيل</h3>
+      <label>أدنى طول للبريد</label><input id="v1" type="number" value="${me}">
+      <label>أدنى طول لكلمة المرور</label><input id="v2" type="number" value="${mp}">
+      <label>كلمات مرور ممنوعة (بفاصلة)</label><input id="v3" value="${bp}">
+      <button class="btn-save" onclick="saveRegRestrict()">حفظ</button>
+    `);
+  }
+  window.saveRegRestrict = async () => {
+    await setSet('min_email_len', +document.getElementById('v1').value);
+    await setSet('min_pass_len', +document.getElementById('v2').value);
+    const arr = document.getElementById('v3').value.split(',').map(s => s.trim()).filter(Boolean);
+    await setSet('banned_passwords', arr);
+    toast('✅ تم حفظ قيود التسجيل');
+    closeModal();
+  };
+
+  // 3) إيقاف/تشغيل التسجيل
+  async function pRegToggle() {
+    const v = await getSet('registration_open', true);
+    openModalHTML(`
+      <h3>🚪 التسجيل</h3>
+      <div class="toggle-row"><span>التسجيل مفتوح:</span>
+        <label class="toggle"><input id="v1" type="checkbox" ${v?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <button class="btn-save" onclick="saveRegToggle()">حفظ</button>
+    `);
+  }
+  window.saveRegToggle = async () => {
+    await setSet('registration_open', document.getElementById('v1').checked);
+    toast('✅ تم الحفظ'); closeModal();
+  };
+
+  // 4) المنشورات
+  async function pPostControl() {
+    const ap = await getSet('allow_posting', true);
+    const ac = await getSet('allow_comments', true);
+    openModalHTML(`
+      <h3>📰 المنشورات</h3>
+      <div class="toggle-row"><span>السماح بالنشر:</span>
+        <label class="toggle"><input id="v1" type="checkbox" ${ap?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row"><span>السماح بالتعليقات:</span>
+        <label class="toggle"><input id="v2" type="checkbox" ${ac?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <button class="btn-save" onclick="savePostControl()">حفظ</button>
+      <button class="btn-save btn-danger" onclick="deleteAllPosts()"><i class="fas fa-trash"></i> حذف كل المنشورات</button>
+    `);
+  }
+  window.savePostControl = async () => {
+    await setSet('allow_posting', document.getElementById('v1').checked);
+    await setSet('allow_comments', document.getElementById('v2').checked);
+    toast('✅ تم'); closeModal();
+  };
+  window.deleteAllPosts = async () => {
+    if(!confirm('حذف كل المنشورات؟')) return;
+    const s = await getDocs(collection(db, "posts"));
+    const b = writeBatch(db); s.forEach(d=>b.delete(d.ref));
+    await b.commit(); toast('🗑️ تم حذف الكل'); closeModal();
+  };
+
+  // 5) التعليقات
+  async function pCommentControl() {
+    openModalHTML(`<h3>💬 التعليقات</h3><button class="btn-save btn-danger" onclick="deleteAllComments()">حذف كل التعليقات</button>`);
+  }
+  window.deleteAllComments = async () => {
+    if(!confirm('حذف كل التعليقات؟')) return;
+    const s = await getDocs(collection(db, "posts"));
+    const b = writeBatch(db); s.forEach(d=>b.update(d.ref,{comments:[]}));
+    await b.commit(); toast('🗑️ تم'); closeModal();
+  };
+
+  // 6) القصص
+  async function pStoryControl() {
+    const v = await getSet('allow_stories', true);
+    openModalHTML(`
+      <h3>⏰ القصص</h3>
+      <div class="toggle-row"><span>السماح بالقصص:</span>
+        <label class="toggle"><input id="v1" type="checkbox" ${v?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <button class="btn-save" onclick="saveStoryControl()">حفظ</button>
+      <button class="btn-save btn-danger" onclick="deleteAllStories()">حذف كل القصص</button>
+    `);
+  }
+  window.saveStoryControl = async () => {
+    await setSet('allow_stories', document.getElementById('v1').checked);
+    toast('✅ تم'); closeModal();
+  };
+  window.deleteAllStories = async () => {
+    if(!confirm('حذف الكل؟')) return;
+    const s = await getDocs(collection(db, "stories"));
+    const b = writeBatch(db); s.forEach(d=>b.delete(d.ref));
+    await b.commit(); toast('🗑️ تم'); closeModal();
+  };
+
+  // 7) الغرف
+  async function pRoomControl() {
+    const v = await getSet('allow_create_rooms', true);
+    const s = await getDocs(collection(db, "rooms"));
+    let list = '';
+    s.forEach(d=>{ const r=d.data(); list+=`<div class="list-item"><span>${r.name||'غرفة'} (${(r.members||[]).length} عضو)</span><button onclick="delRoom('${d.id}')">حذف</button></div>`; });
+    openModalHTML(`
+      <h3>🚪 الغرف</h3>
+      <div class="toggle-row"><span>السماح بإنشاء الغرف:</span>
+        <label class="toggle"><input id="v1" type="checkbox" ${v?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <button class="btn-save" onclick="saveRoomControl()">حفظ</button>
+      <div style="margin-top:14px;">${list||'<p>لا توجد غرف</p>'}</div>
+    `);
+  }
+  window.saveRoomControl = async () => {
+    await setSet('allow_create_rooms', document.getElementById('v1').checked);
+    toast('✅ تم'); closeModal();
+  };
+  window.delRoom = async (id) => { await deleteDoc(doc(db,"rooms",id)); toast('🗑️ تم'); pRoomControl(); };
+
+  // 8) المتجر
+  async function pShopControl() {
+    const s = await getDocs(collection(db, "products"));
+    let list = '';
+    s.forEach(d=>{ const p=d.data(); list+=`<div class="list-item"><span>${p.type} ${p.idValue||''} - ${p.price} ${p.currency}</span><button onclick="delProd('${d.id}')">حذف</button></div>`; });
+    openModalHTML(`
+      <h3>🛒 المتجر</h3>
+      <button class="btn-save" style="background:#3b82f6;" onclick="addProdUI()">+ إضافة منتج</button>
+      <div style="margin-top:10px;">${list||'<p>لا منتجات</p>'}</div>
+    `);
+  }
+  window.delProd = async (id) => { await deleteDoc(doc(db,"products",id)); toast('🗑️ تم'); pShopControl(); };
+  window.addProdUI = () => {
+    openModalHTML(`
+      <h3>منتج جديد</h3>
+      <select id="pt"><option value="id">معرف</option><option value="frame">إطار</option><option value="name">اسم</option><option value="avatar">صورة</option><option value="verify">توثيق</option></select>
+      <input id="pv" placeholder="المعرف (للنوع معرف)">
+      <input id="pi" placeholder="رابط الصورة">
+      <input id="pp" type="number" placeholder="السعر">
+      <select id="pc"><option value="money">مال</option><option value="gold">ذهب</option><option value="elixir">إكسير</option></select>
+      <input id="pu" type="number" value="0" placeholder="استخدامات">
+      <button class="btn-save" onclick="submitProd()">إضافة</button>
+    `);
+  };
+  window.submitProd = async () => {
+    await addDoc(collection(db,"products"), {
+      type: document.getElementById('pt').value,
+      idValue: document.getElementById('pv').value.trim(),
+      image: document.getElementById('pi').value.trim(),
+      price: +document.getElementById('pp').value,
+      currency: document.getElementById('pc').value,
+      uses: +document.getElementById('pu').value,
+      createdAt: Date.now(), hidden: false
+    });
+    toast('✅ تم'); closeModal(); pShopControl();
+  };
+
+  // 9) آبار النفط
+  async function pOilControl() {
+    const s = await getDocs(collection(db, "oil_wells"));
+    let list = '';
+    s.forEach(d=>{ list+=`<div class="list-item"><span>${d.id.slice(0,8)} - Lv ${d.data().level||0}</span><button onclick="delOil('${d.id}')">حذف</button></div>`; });
+    openModalHTML(`<h3>🛢️ الآبار</h3>${list||'<p>لا آبار</p>'}`);
+  }
+  window.delOil = async (id) => { await deleteDoc(doc(db,"oil_wells",id)); toast('🗑️ تم'); pOilControl(); };
+
+  // 10) الأثرياء (تصفير المال)
+  async function pRichControl() {
+    const [us, rs] = await Promise.all([getDocs(collection(db,"users")), getDocs(collection(db,"resources"))]);
+    const mm = {};
+    rs.forEach(d=>mm[d.id]=d.data().money||0);
+    let arr = [];
+    us.forEach(d=>arr.push({id:d.id,name:d.data().username,money:mm[d.id]||0}));
+    arr.sort((a,b)=>b.money-a.money);
+    let list = '';
+    arr.slice(0,30).forEach((u,i)=>list+=`<div class="list-item"><span>${i+1}. ${u.name} - ${u.money.toLocaleString()}</span><button onclick="resetRich('${u.id}')">تصفير</button></div>`);
+    openModalHTML(`<h3>👑 الأثرياء</h3>${list}`);
+  }
+  window.resetRich = async (uid) => {
+    await updateDoc(doc(db,"resources",uid),{money:0});
+    toast('💸 تم التصفير'); pRichControl();
+  };
+
+  // 11) المحافظ
+  async function pWalletControl() {
+    openModalHTML(`
+      <h3>💳 تعديل محفظة</h3>
+      <input id="wu" placeholder="userId أو UID">
+      <select id="wc"><option value="money">مال</option><option value="gold">ذهب</option><option value="elixir">إكسير</option><option value="oil">نفط</option><option value="ddo">DDO</option></select>
+      <input id="wa" type="number" placeholder="المبلغ (+ أو -)">
+      <button class="btn-save" onclick="adjWallet()">تعديل</button>
+    `);
+  }
+  window.adjWallet = async () => {
+    const uid = document.getElementById('wu').value.trim();
+    const c = document.getElementById('wc').value;
+    const a = +document.getElementById('wa').value;
+    if(!uid || !a) return toast('املأ البيانات',false);
+    let t = uid;
+    const q = await getDocs(query(collection(db,"users"), where("userId","==",uid)));
+    if(!q.empty) t = q.docs[0].id;
+    await updateDoc(doc(db,"resources",t),{[c]:increment(a)});
+    toast('✅ تم'); closeModal();
+  };
+
+  // 12) الأعضاء
+  async function pUserControl() {
+    const s = await getDocs(collection(db,"users"));
+    let list = '';
+    s.forEach(d=>{const u=d.data(); list+=`<div class="list-item"><span>${u.username||'مستخدم'} ${u.banned?'🚫':''}</span>
+      <button onclick="tBan('${d.id}')">${u.banned?'فك':'حظر'}</button>
+      <button onclick="delUser('${d.id}')">حذف</button></div>`;});
+    openModalHTML(`<h3>👥 الأعضاء</h3>${list}`);
+  }
+  window.tBan = async (uid) => {
+    const s = await getDoc(doc(db,"users",uid));
+    await updateDoc(doc(db,"users",uid),{banned:!s.data().banned});
+    toast('✅ تم'); pUserControl();
+  };
+  window.delUser = async (uid) => {
+    await deleteDoc(doc(db,"users",uid));
+    await deleteDoc(doc(db,"resources",uid)).catch(()=>{});
+    toast('🗑️ تم'); pUserControl();
+  };
+
+  // 13) الماسنجر
+  async function pChatControl() {
+    const s = await getDocs(collection(db,"chats"));
+    let list = '';
+    s.forEach(d=>list+=`<div class="list-item"><span>محادثة</span><button onclick="delChat('${d.id}')">حذف</button></div>`);
+    openModalHTML(`<h3>💭 المحادثات</h3>${list||'<p>لا محادثات</p>'}`);
+  }
+  window.delChat = async (id) => { await deleteDoc(doc(db,"chats",id)); toast('🗑️ تم'); pChatControl(); };
+
+  // 14) إشعار عام
+  async function pNotifControl() {
+    openModalHTML(`
+      <h3>🔔 إشعار عام</h3>
+      <input id="nt" placeholder="العنوان">
+      <textarea id="nb" placeholder="النص"></textarea>
+      <button class="btn-save" onclick="sendGN()">إرسال للجميع</button>
+    `);
+  }
+  window.sendGN = async () => {
+    await addDoc(collection(db,"global_notifications"),{
+      title: document.getElementById('nt').value,
+      body: document.getElementById('nb').value,
+      timestamp: Date.now()
+    });
+    toast('📨 تم الإرسال'); closeModal();
+  };
+
+  // 15) المشاريع
+  async function pProjectControl() {
+    const s = await getDocs(collection(db,"projects"));
+    let list = '';
+    s.forEach(d=>{const p=d.data(); list+=`<div class="list-item"><span>${p.title} - ${p.currentAmount||0}/${p.targetAmount}</span><button onclick="delProj('${d.id}')">حذف</button></div>`;});
+    openModalHTML(`<h3>📋 المشاريع</h3>${list||'<p>لا مشاريع</p>'}`);
+  }
+  window.delProj = async (id) => { await deleteDoc(doc(db,"projects",id)); toast('🗑️ تم'); pProjectControl(); };
+
+  // 16) DDO
+  async function pDdoControl() {
+    const r = await getSet('ddo_exchange_rate', 1);
+    openModalHTML(`<h3>💎 سعر DDO</h3><label>1 DDO = كم عملة</label><input id="v1" type="number" value="${r}"><button class="btn-save" onclick="saveDdo()">حفظ</button>`);
+  }
+  window.saveDdo = async () => {
+    await setSet('ddo_exchange_rate', +document.getElementById('v1').value);
+    toast('✅ تم'); closeModal();
+  };
+
+  // ========== المصادقة ==========
+  onAuthStateChanged(auth, async (user) => {
+    if (user && ADMIN_EMAILS.includes(user.email)) {
+      renderGrid();
+    } else if (user) {
+      document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:60px;"><h2>غير مصرح</h2></div>';
+    } else {
+      document.body.innerHTML = `
+        <div style="color:#fff;text-align:center;padding:60px;">
+          <h2>تسجيل الدخول</h2>
+          <input id="le" placeholder="البريد" style="padding:10px;margin:6px;border-radius:16px;border:none;width:240px;"><br>
+          <input id="lp" type="password" placeholder="كلمة المرور" style="padding:10px;margin:6px;border-radius:16px;border:none;width:240px;"><br>
+          <button onclick="doLogin()" style="padding:10px 24px;border-radius:20px;border:none;background:#fbbf24;font-weight:bold;cursor:pointer;">دخول</button>
+          <p id="err" style="color:#ef4444;margin-top:8px;"></p>
+        </div>`;
+      window.doLogin = async () => {
+        try { await signInWithEmailAndPassword(auth, document.getElementById('le').value, document.getElementById('lp').value); }
+        catch(e) { document.getElementById('err').textContent = e.message; }
+      };
+    }
+  });
+</script>
+</body>
+</html>
