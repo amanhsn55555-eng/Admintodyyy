@@ -54,9 +54,9 @@
 <body>
 <div class="header">
   <h1><i class="fas fa-crown" style="color:#fbbf24;"></i> لوحة التحكم</h1>
-  <button onclick="window.open('https://amanhsn55555-eng.github.io/Admin-masengar-tody/','_blank')"><i class="fab fa-facebook-messenger"></i> الماسنجر</button>
+  <button onclick="window.open('Msgtdy.html','_blank')"><i class="fab fa-facebook-messenger"></i> الماسنجر</button>
 </div>
-  <div class="grid" id="mainGrid"></div>
+<div class="grid" id="mainGrid"></div>
 <div id="toast"></div>
 <div class="modal" id="modal">
   <div class="modal-box">
@@ -115,17 +115,19 @@ var panels=[
   {id:'chats',i:'fa-sms',t:'💭 محادثات'},
   {id:'reports',i:'fa-flag',t:'🚨 بلاغات'},
   {id:'notif',i:'fa-bell',t:'🔔 إشعار'},
+  {id:'friendFee',i:'fa-user-friends',t:'💎 نسبة الصديق'},
   {id:'projects',i:'fa-project-diagram',t:'📋 مشاريع'},
-  {id:'ddo',i:'fa-gem',t:'💎 DDO'},
-  {id:'friendFee',i:'fa-user-friends',t:'💎 نسبة الصديق'}
+  {id:'ddo',i:'fa-gem',t:'💎 DDO'}
+  
 ];
 
 function grid(){var h='';for(var i=0;i<panels.length;i++){var p=panels[i];h+='<button class="card-btn" onclick="go(\''+p.id+'\')"><i class="fas '+p.i+'"></i><span>'+p.t+'</span></button>'}document.getElementById('mainGrid').innerHTML=h}
 
 window.go=async function(id){
   switch(id){
-    case'friendFee':await pFriendFee();break;
+   
     case'dash':await pDash();break;
+    case'friendFee':await pFriendFee();break;
     case'regRes':await pRegRes();break;
     case'regLock':await pRegLock();break;
     case'regOn':await pRegOn();break;
@@ -149,8 +151,42 @@ window.go=async function(id){
   }
 };
 
+  
 // ========== ملخص ==========
-async function pDash(){
+  
+  // ========== 🆕 نسبة الصديق ==========
+async function pFriendFee(){
+  var fee = await gSet('friend_fee_percent', 1);
+  var enabled = await gSet('friend_fee_enabled', true);
+  
+  openM(
+    '<h3>💎 نسبة استقطاع الصديق</h3>' +
+    '<p style="color:#64748b;font-size:12px;margin-bottom:12px">تخصم من كل عملية سحب وتحول لصاحب المعرف</p>' +
+    '<label>النسبة %</label>' +
+    '<input id="feePct" type="number" value="' + fee + '" min="0" max="100" step="0.5">' +
+    '<div class="toggle-row"><span>تفعيل:</span><label class="toggle"><input id="feeEn" type="checkbox" ' + (enabled ? 'checked' : '') + '><span class="toggle-slider"></span></label></div>' +
+    '<div style="background:#fef3c7;border-radius:12px;padding:10px;margin:8px 0;text-align:center;font-size:13px">' +
+    '💰 مثال: 1000 TMX → <strong id="feeEx">' + Math.floor(1000 * fee / 100) + '</strong> TMX للصديق' +
+    '</div>' +
+    '<button class="btn-save" onclick="svFee()">💾 حفظ</button>'
+  );
+  
+  document.getElementById('feePct').addEventListener('input', function(){
+    var v = parseFloat(this.value) || 0;
+    document.getElementById('feeEx').textContent = Math.floor(1000 * v / 100);
+  });
+}
+
+window.svFee = async function() {
+  var p = parseFloat(document.getElementById('feePct').value) || 0;
+  var en = document.getElementById('feeEn').checked;
+  await sSet('friend_fee_percent', p);
+  await sSet('friend_fee_enabled', en);
+  toast('✅ تم');
+  document.getElementById('modal').classList.remove('active');
+};
+
+  async function pDash(){
   openM('<h3>📊 ملخص</h3><div id="dc" style="text-align:center">⏳</div>');
   var users=await getDocs(collection(db,"users"));
   var posts=await getDocs(collection(db,"posts"));
@@ -234,38 +270,8 @@ async function pRooms(){
 }
 window.svRooms=async function(){await sSet('allow_create_rooms',document.getElementById('v1').checked);toast('✅');document.getElementById('modal').classList.remove('active')}
 window.delR=async function(id){await deleteDoc(doc(db,"rooms",id));toast('🗑️');pRooms()}
-async function pFriendFee(){
-  var fee = await gSet('friend_fee_percent', 1);
-  var enabled = await gSet('friend_fee_enabled', true);
-  
-  openM(
-    '<h3>💎 نسبة استقطاع الصديق</h3>' +
-    '<p style="color:#64748b;font-size:12px;margin-bottom:12px">هذه النسبة تخصم من كل عملية سحب وتحول لصاحب المعرف</p>' +
-    '<label>النسبة المئوية %</label>' +
-    '<input id="feePct" type="number" value="' + fee + '" min="0" max="100" step="0.5">' +
-    '<div class="toggle-row"><span>تفعيل الاستقطاع:</span><label class="toggle"><input id="feeEn" type="checkbox" ' + (enabled ? 'checked' : '') + '><span class="toggle-slider"></span></label></div>' +
-    '<div style="background:#fef3c7;border-radius:12px;padding:10px;margin:8px 0;text-align:center;font-size:13px">' +
-    '💰 مثال: عند سحب 1000 TMX سيتم خصم <strong id="feeEx">' + Math.floor(1000 * fee / 100) + '</strong> TMX لصاحب المعرف' +
-    '</div>' +
-    '<button class="btn-save" onclick="svFriendFee()">💾 حفظ</button>'
-  );
-  
-  document.getElementById('feePct').addEventListener('input', function(){
-    var v = parseFloat(this.value) || 0;
-    document.getElementById('feeEx').textContent = Math.floor(1000 * v / 100);
-  });
-}
 
-window.svFriendFee = async function() {
-  var percent = parseFloat(document.getElementById('feePct').value) || 0;
-  var enabled = document.getElementById('feeEn').checked;
-  
-  await sSet('friend_fee_percent', percent);
-  await sSet('friend_fee_enabled', enabled);
-  
-  toast('✅ تم حفظ إعدادات نسبة الصديق');
-  document.getElementById('modal').classList.remove('active');
-};
+// ========== متجر ==========
 async function pShop(){
   openM('<h3>🛒 المتجر</h3><div id="sc">⏳</div>');
   var s=await getDocs(collection(db,"products"));var list='';
@@ -319,24 +325,61 @@ window.exW=async function(){var uid=document.getElementById('wuid').value,op=doc
 window.svWallet=async function(){await sSet('allow_withdraw',document.getElementById('aw').checked);await sSet('rate_gold',+document.getElementById('rg').value);await sSet('rate_elixir',+document.getElementById('re').value);await sSet('rate_oil',+document.getElementById('ro').value);await sSet('sell_fee',+document.getElementById('sf').value);await sSet('min_withdraw',+document.getElementById('mw').value);toast('✅');document.getElementById('modal').classList.remove('active')}
 
 // ========== طلبات سحب ==========
+// ========== طلبات سحب (التعديل المطلوب) ==========
 async function pWithdraw(){
   openM('<h3>📋 طلبات السحب</h3><div id="wdc">⏳</div>');
   var allDocs=await getDocs(collection(db,"withdraw_requests"));
   var pending=[];allDocs.forEach(function(d){var r=d.data();if(r.status==='pending')pending.push({id:d.id,data:r})});
   pending.sort(function(a,b){return(b.data.createdAt||0)-(a.data.createdAt||0)});var list='';
-  for(var i=0;i<pending.length;i++){var req=pending[i].data,rid=pending[i].id;
-    var ud=req.userData||{};if(!ud.username&&req.uid)try{ud=await gUser(req.uid)}catch(e){}
-    list+='<div class="withdraw-req"><div style="display:flex;align-items:center;gap:8px"><div class="mini-avatar" style="width:40px;height:40px;font-size:20px">'+av(ud)+'</div><div><strong>'+(ud.username||'مستخدم')+'</strong><br><small>💵 '+fNum(req.amount||0)+' TMX</small></div></div><div class="actions"><button style="background:#10b981" onclick="accW(\''+rid+'\')">✅ قبول</button><button style="background:#ef4444" onclick="rejW(\''+rid+'\')">❌ رفض</button></div></div>'}
-  document.getElementById('wdc').innerHTML=list||'<div class="empty-state"><p>✅ لا طلبات</p></div>';
+  
+  if(pending.length===0){
+    list='<div class="empty-state"><p>✅ لا طلبات معلقة</p></div>';
+  } else {
+    for(var i=0;i<pending.length;i++){
+      var req=pending[i].data,rid=pending[i].id;
+      var ud=req.userData||{};if(!ud.username&&req.uid)try{ud=await gUser(req.uid)}catch(e){}
+      
+      list+='<div class="withdraw-req">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+
+        '<div class="mini-avatar" style="width:45px;height:45px;font-size:22px;border-color:'+(ud.colors?.frame||'#fbbf24')+'">'+av(ud)+'</div>'+
+        '<div><strong>'+(ud.username||req.userName||'مستخدم')+'</strong> <span class="tag">#'+(ud.userId||req.userId||'')+'</span>'+
+        '<br><small>📧 '+(ud.email||req.userEmail||'?')+' | 📱 '+(req.method==='zain'?'زين كاش':req.method==='master'?'ماستر':'وكيل:'+(req.agentName||'?'))+'</small></div></div>'+
+        '<div style="font-size:22px;font-weight:800;color:#ef4444;text-align:center">💵 '+((req.amount||0)).toLocaleString('ar-SA')+' TMX</div>'+
+        '<div class="actions"><button style="background:#10b981" onclick="accW(\''+rid+'\')">✅ قبول</button><button style="background:#ef4444" onclick="rejW(\''+rid+'\')">❌ رفض</button></div></div>';
+    }
+  }
+  document.getElementById('wdc').innerHTML=list;
 }
 window.accW=async function(id){if(!confirm('قبول؟'))return;await updateDoc(doc(db,"withdraw_requests",id),{status:'accepted',processedAt:Date.now()});toast('✅');pWithdraw()}
-window.rejW=async function(id){var reason=prompt('سبب الرفض:','');if(reason===null)return;var reqDoc=await getDoc(doc(db,"withdraw_requests",id));if(!reqDoc.exists())return;var req=reqDoc.data();if(req.uid&&req.amount)await updateDoc(doc(db,"resources",req.uid),{money:increment(req.amount)});await updateDoc(doc(db,"withdraw_requests",id),{status:'rejected',reason:reason});toast('↩️ تم');pWithdraw()}
-
+window.rejW=async function(id){
+  var reason=prompt('سبب الرفض:','');if(reason===null)return;
+  var reqDoc=await getDoc(doc(db,"withdraw_requests",id));if(!reqDoc.exists())return;
+  var req=reqDoc.data();if(req.uid&&req.amount)await updateDoc(doc(db,"resources",req.uid),{money:increment(req.amount)});
+  await updateDoc(doc(db,"withdraw_requests",id),{status:'rejected',reason:reason,processedAt:Date.now()});
+  toast('↩️ تم الرفض');pWithdraw();
+};
 // ========== شحن ==========
-async function pCharge(){openM('<h3>⚡ شحن/استقطاع</h3><div style="display:flex;gap:6px;margin-bottom:8px"><input id="cs" placeholder="اسم، بريد، id..." style="flex:1"><button class="btn-save" style="width:auto;margin-top:0" onclick="srchC()">بحث</button></div><div id="cres" style="margin:6px 0"></div><div id="cform" style="display:none"><input type="hidden" id="cuid"><select id="cop"><option value="add">➕ شحن</option><option value="subtract">➖ استقطاع</option></select><select id="ccur"><option value="money">مال</option><option value="gold">ذهب</option><option value="elixir">إكسير</option><option value="oil">نفط</option><option value="ddo">DDO</option></select><input id="camt" type="number" min="1"><button class="btn-save" onclick="exC()">تنفيذ</button></div>');}
-window.srchC=async function(){var sv=document.getElementById('cs').value.trim(),rd=document.getElementById('cres');if(!sv){rd.innerHTML='';return}var f=await sUser(sv);if(!f){rd.innerHTML='<p style="color:#ef4444">❌</p>';return}rd.innerHTML='<div class="search-card"><div class="mini-avatar">'+av(f)+'</div><div><strong>'+(f.username||'مستخدم')+'</strong></div></div>';document.getElementById('cform').style.display='block';document.getElementById('cuid').value=f.uid}
-window.exC=async function(){var uid=document.getElementById('cuid').value,op=document.getElementById('cop').value,cur=document.getElementById('ccur').value,amt=+document.getElementById('camt').value;if(!uid||!amt)return toast('أدخل البيانات',false);if(!confirm('تأكيد؟'))return;var upd={};upd[cur]=increment(op==='subtract'?-amt:amt);await updateDoc(doc(db,"resources",uid),upd);toast('✅')}
-
+// ========== شحن واستقطاع (التعديل المطلوب) ==========
+async function pCharge(){
+  openM('<h3>⚡ شحن/استقطاع</h3><div style="background:#fff;border-radius:16px;padding:12px;margin-bottom:10px"><label>🔍 بحث</label><div style="display:flex;gap:8px"><input id="cs" placeholder="اسم، بريد، id..." style="flex:1"><button class="btn-save" style="width:auto;margin-top:0" onclick="srchC()">بحث</button></div><div id="cres" style="margin-top:10px"></div></div><div style="background:#fff;border-radius:16px;padding:12px;display:none" id="cform"><input type="hidden" id="cuid"><label>العملية</label><select id="cop"><option value="add">➕ شحن</option><option value="subtract">➖ استقطاع</option></select><label>العملة</label><select id="ccur"><option value="money">مال</option><option value="gold">ذهب</option><option value="elixir">إكسير</option><option value="oil">نفط</option><option value="ddo">DDO</option></select><label>المبلغ</label><input id="camt" type="number" min="1"><button class="btn-save" onclick="exC()">تنفيذ</button></div>');
+}
+window.srchC=async function(){
+  var sv=document.getElementById('cs').value.trim(),rd=document.getElementById('cres');
+  if(!sv){rd.innerHTML='';document.getElementById('cform').style.display='none';return}
+  var f=await sUser(sv);
+  if(!f){rd.innerHTML='<p style="color:#ef4444">❌ لم يتم العثور</p>';document.getElementById('cform').style.display='none';return}
+  var res=await gRes(f.uid);
+  rd.innerHTML='<div style="display:flex;align-items:center;gap:10px;background:#f8fafc;border-radius:14px;padding:10px"><div class="mini-avatar" style="border-color:#10b981">'+av(f)+'</div><div><strong>'+(f.username||'مستخدم')+'</strong> <span class="tag">#'+(f.userId||f.uid.slice(0,6))+'</span><div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:2px"><span class="tag" style="background:#d1fae5">💰'+(res.money||0).toLocaleString('ar-SA')+'</span><span class="tag" style="background:#fef3c7">🪙'+(res.gold||0).toLocaleString('ar-SA')+'</span><span class="tag" style="background:#ede9fe">🧪'+(res.elixir||0).toLocaleString('ar-SA')+'</span><span class="tag" style="background:#cffafe">🛢️'+(res.oil||0).toLocaleString('ar-SA')+'</span><span class="tag" style="background:#fce7f3">💎'+(res.ddo||0).toLocaleString('ar-SA')+'</span></div></div></div>';
+  document.getElementById('cform').style.display='block';document.getElementById('cuid').value=f.uid;
+};
+window.exC=async function(){
+  var uid=document.getElementById('cuid').value,op=document.getElementById('cop').value,cur=document.getElementById('ccur').value,amt=+document.getElementById('camt').value;
+  if(!uid||!amt)return toast('أدخل البيانات',false);
+  var cn={money:'مال',gold:'ذهب',elixir:'إكسير',oil:'نفط',ddo:'DDO'};
+  if(!confirm('تأكيد '+(op==='add'?'شحن':'استقطاع')+' '+amt.toLocaleString('ar-SA')+' '+cn[cur]+'؟'))return;
+  var upd={};upd[cur]=increment(op==='subtract'?-amt:amt);await updateDoc(doc(db,"resources",uid),upd);
+  toast('✅ تم');document.getElementById('camt').value='';
+};
 // ========== أعضاء ==========
 async function pUsers(){
   openM('<h3>👥 الأعضاء</h3><div id="uc">⏳</div>');
@@ -347,12 +390,73 @@ async function pUsers(){
 window.tBan=async function(uid){var s=await getDoc(doc(db,"users",uid));await updateDoc(doc(db,"users",uid),{banned:!s.data().banned});toast('✅');pUsers()}
 window.delU=async function(uid){if(!confirm('حذف؟'))return;await deleteDoc(doc(db,"users",uid));await deleteDoc(doc(db,"resources",uid)).catch(function(){});toast('🗑️');pUsers()}
 
-async function pStats(){openM('<h3>📈 إحصائيات</h3><input id="stsSearch" placeholder="ابحث..." style="width:100%;padding:8px;border-radius:12px;border:2px solid #e2e8f0;margin-bottom:6px"><button class="btn-save" onclick="ldStats()">🔍 عرض</button><div id="stsResult"></div>')}
-window.ldStats=async function(){var sv=document.getElementById('stsSearch').value.trim();if(!sv)return;var f=await sUser(sv);if(!f)return;var res=await gRes(f.uid);document.getElementById('stsResult').innerHTML='<div class="search-card"><div class="mini-avatar">'+av(f)+'</div><div><strong>'+(f.username||'مستخدم')+'</strong><br>💰'+fNum(res.money)+' 🪙'+fNum(res.gold)+' 🧪'+fNum(res.elixir)+' 🛢️'+fNum(res.oil)+' 💎'+fNum(res.ddo)+'</div></div>'}
-
-async function pIp(){openM('<h3>🌐 كشف</h3><input id="ipSearch" placeholder="ابحث..." style="width:100%;padding:8px;border-radius:12px;border:2px solid #e2e8f0;margin-bottom:6px"><button class="btn-save" onclick="ldIp()">🔍</button><div id="ipResult"></div>')}
-window.ldIp=async function(){var sv=document.getElementById('ipSearch').value.trim();if(!sv)return;var f=await sUser(sv);if(!f)return;var all=await getDocs(collection(db,"users"));var sip=[];all.forEach(function(d){if(d.data().ip===f.ip&&d.id!==f.uid)sip.push(d.data())});document.getElementById('ipResult').innerHTML='<div class="search-card"><div class="mini-avatar">'+av(f)+'</div><div><strong>'+(f.username||'مستخدم')+'</strong> - بنفس IP: '+sip.length+' حساب</div></div>'}
-
+// ========== إحصائيات (التعديل المطلوب) ==========
+async function pStats(){
+  openM('<h3>📈 إحصائيات</h3><div style="margin-bottom:10px"><input id="stsSearch" placeholder="ابحث عن عضو..." style="width:100%;padding:10px;border-radius:14px;border:2px solid #e2e8f0"><button class="btn-save" onclick="ldStats()">🔍 عرض</button></div><div id="stsResult"></div>');
+}
+window.ldStats=async function(){
+  var sv=document.getElementById('stsSearch').value.trim();if(!sv)return toast('اكتب اسم أو معرف',false);
+  var f=await sUser(sv);if(!f)return toast('لم يتم العثور',false);
+  var uid=f.uid,res=await gRes(uid);
+  var oilWell=null;try{var ow=await getDoc(doc(db,"oil_wells",uid));if(ow.exists())oilWell=ow.data()}catch(e){}
+  var projects=[];var allProj=await getDocs(collection(db,"projects"));allProj.forEach(function(d){if(d.data().ownerId===uid)projects.push(d.data())});
+  var rooms=[];var allRooms=await getDocs(collection(db,"rooms"));allRooms.forEach(function(d){if(d.data().ownerId===uid)rooms.push(d.data())});
+  var withdraws=[];var allW=await getDocs(collection(db,"withdraw_requests"));allW.forEach(function(d){if(d.data().uid===uid)withdraws.push(d.data())});
+  
+  document.getElementById('stsResult').innerHTML=
+    '<div style="background:#fff;border-radius:16px;padding:14px">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="mini-avatar" style="width:45px;height:45px;font-size:22px">'+av(f)+'</div><div><strong>'+(f.username||'مستخدم')+'</strong> <span class="tag">#'+(f.userId||uid.slice(0,6))+'</span></div></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'+
+    '<div style="background:#f0fdf4;border-radius:12px;padding:10px;text-align:center"><strong>💰 '+(res.money||0).toLocaleString('ar-SA')+'</strong><br><small>مال</small></div>'+
+    '<div style="background:#fef3c7;border-radius:12px;padding:10px;text-align:center"><strong>🪙 '+(res.gold||0).toLocaleString('ar-SA')+'</strong><br><small>ذهب</small></div>'+
+    '<div style="background:#ede9fe;border-radius:12px;padding:10px;text-align:center"><strong>🧪 '+(res.elixir||0).toLocaleString('ar-SA')+'</strong><br><small>إكسير</small></div>'+
+    '<div style="background:#cffafe;border-radius:12px;padding:10px;text-align:center"><strong>🛢️ '+(res.oil||0).toLocaleString('ar-SA')+'</strong><br><small>نفط</small></div>'+
+    '</div>'+
+    '<p>🛢️ بئر: '+(oilWell?'مستوى '+(oilWell.level||0)+' | 🛢️'+([10,50,100,500][oilWell.level||0]||10)+'/يوم':'لا يملك')+'</p>'+
+    '<p>📋 مشاريع: '+projects.length+' | 🚪 غرف: '+rooms.length+' | 💵 طلبات سحب: '+withdraws.length+'</p></div>';
+};
+// ========== كشف حسابات (التعديل المطلوب) ==========
+async function pIp(){
+  openM('<h3>🌐 كشف حسابات</h3><div style="margin-bottom:10px"><input id="ipSearch" placeholder="ابحث عن عضو..." style="width:100%;padding:10px;border-radius:14px;border:2px solid #e2e8f0"><button class="btn-save" onclick="ldIp()">🔍 كشف</button></div><div id="ipResult"></div>');
+}
+window.ldIp=async function(){
+  var sv=document.getElementById('ipSearch').value.trim();if(!sv)return toast('اكتب اسم أو معرف',false);
+  var f=await sUser(sv);if(!f)return toast('لم يتم العثور',false);
+  var tip=f.ip||'غير معروف',tdv=f.device||'غير معروف';
+  var all=await getDocs(collection(db,"users"));var sip=[],sdv=[];
+  all.forEach(function(d){var u=d.data();u.uid=d.id;if(u.ip===tip&&u.uid!==f.uid)sip.push(u);if(u.device===tdv&&u.uid!==f.uid)sdv.push(u)});
+  
+  var html='<div style="background:#fff;border-radius:16px;padding:14px">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;background:#f8fafc;border-radius:14px;padding:12px">'+
+    '<div class="mini-avatar" style="width:45px;height:45px;font-size:22px;border-color:#3b82f6">'+av(f)+'</div>'+
+    '<div><strong>'+(f.username||'مستخدم')+'</strong> <span class="tag">#'+(f.userId||f.uid.slice(0,6))+'</span>'+
+    '<br><small>🌐 IP: <span style="color:#3b82f6;font-weight:600">'+tip+'</span></small>'+
+    '<br><small>📱 الجهاز: <span style="color:#8b5cf6;font-weight:600">'+tdv+'</span></small></div></div>'+
+    '<div style="background:#eff6ff;border-radius:14px;padding:12px;margin-bottom:10px">'+
+    '<h4 style="margin:0 0 8px;color:#1e40af;display:flex;align-items:center;gap:6px"><i class="fas fa-network-wired"></i> حسابات بنفس IP ('+sip.length+')</h4>';
+  
+  if(sip.length===0){
+    html+='<p style="color:#64748b;text-align:center;padding:10px">✅ لا توجد حسابات أخرى</p>';
+  } else {
+    for(var i=0;i<sip.length;i++){
+      html+='<div class="list-item"><div style="display:flex;align-items:center;gap:8px"><div class="mini-avatar">'+av(sip[i])+'</div><div><strong>'+(sip[i].username||'مستخدم')+'</strong> <span class="tag">#'+(sip[i].userId||sip[i].uid.slice(0,6))+'</span>'+(sip[i].banned?' <span class="tag" style="background:#fee2e2;color:#dc2626">🚫 محظور</span>':'')+'</div></div></div>';
+    }
+  }
+  
+  html+='</div><div style="background:#f5f3ff;border-radius:14px;padding:12px">'+
+    '<h4 style="margin:0 0 8px;color:#6d28d9;display:flex;align-items:center;gap:6px"><i class="fas fa-mobile-alt"></i> حسابات بنفس الجهاز ('+sdv.length+')</h4>';
+  
+  if(sdv.length===0){
+    html+='<p style="color:#64748b;text-align:center;padding:10px">✅ لا توجد حسابات أخرى</p>';
+  } else {
+    for(var j=0;j<sdv.length;j++){
+      html+='<div class="list-item"><div style="display:flex;align-items:center;gap:8px"><div class="mini-avatar">'+av(sdv[j])+'</div><div><strong>'+(sdv[j].username||'مستخدم')+'</strong> <span class="tag">#'+(sdv[j].userId||sdv[j].uid.slice(0,6))+'</span>'+(sdv[j].banned?' <span class="tag" style="background:#fee2e2;color:#dc2626">🚫 محظور</span>':'')+'</div></div></div>';
+    }
+  }
+  
+  html+='</div></div>';
+  document.getElementById('ipResult').innerHTML=html;
+};
 // ========== محادثات ==========
 async function pChats(){
   openM('<h3>💭 المحادثات</h3><div id="chc">⏳</div>');
