@@ -116,13 +116,15 @@ var panels=[
   {id:'reports',i:'fa-flag',t:'🚨 بلاغات'},
   {id:'notif',i:'fa-bell',t:'🔔 إشعار'},
   {id:'projects',i:'fa-project-diagram',t:'📋 مشاريع'},
-  {id:'ddo',i:'fa-gem',t:'💎 DDO'}
+  {id:'ddo',i:'fa-gem',t:'💎 DDO'},
+  {id:'friendFee',i:'fa-user-friends',t:'💎 نسبة الصديق'}
 ];
 
 function grid(){var h='';for(var i=0;i<panels.length;i++){var p=panels[i];h+='<button class="card-btn" onclick="go(\''+p.id+'\')"><i class="fas '+p.i+'"></i><span>'+p.t+'</span></button>'}document.getElementById('mainGrid').innerHTML=h}
 
 window.go=async function(id){
   switch(id){
+    case'friendFee':await pFriendFee();break;
     case'dash':await pDash();break;
     case'regRes':await pRegRes();break;
     case'regLock':await pRegLock();break;
@@ -232,8 +234,38 @@ async function pRooms(){
 }
 window.svRooms=async function(){await sSet('allow_create_rooms',document.getElementById('v1').checked);toast('✅');document.getElementById('modal').classList.remove('active')}
 window.delR=async function(id){await deleteDoc(doc(db,"rooms",id));toast('🗑️');pRooms()}
+async function pFriendFee(){
+  var fee = await gSet('friend_fee_percent', 1);
+  var enabled = await gSet('friend_fee_enabled', true);
+  
+  openM(
+    '<h3>💎 نسبة استقطاع الصديق</h3>' +
+    '<p style="color:#64748b;font-size:12px;margin-bottom:12px">هذه النسبة تخصم من كل عملية سحب وتحول لصاحب المعرف</p>' +
+    '<label>النسبة المئوية %</label>' +
+    '<input id="feePct" type="number" value="' + fee + '" min="0" max="100" step="0.5">' +
+    '<div class="toggle-row"><span>تفعيل الاستقطاع:</span><label class="toggle"><input id="feeEn" type="checkbox" ' + (enabled ? 'checked' : '') + '><span class="toggle-slider"></span></label></div>' +
+    '<div style="background:#fef3c7;border-radius:12px;padding:10px;margin:8px 0;text-align:center;font-size:13px">' +
+    '💰 مثال: عند سحب 1000 TMX سيتم خصم <strong id="feeEx">' + Math.floor(1000 * fee / 100) + '</strong> TMX لصاحب المعرف' +
+    '</div>' +
+    '<button class="btn-save" onclick="svFriendFee()">💾 حفظ</button>'
+  );
+  
+  document.getElementById('feePct').addEventListener('input', function(){
+    var v = parseFloat(this.value) || 0;
+    document.getElementById('feeEx').textContent = Math.floor(1000 * v / 100);
+  });
+}
 
-// ========== متجر ==========
+window.svFriendFee = async function() {
+  var percent = parseFloat(document.getElementById('feePct').value) || 0;
+  var enabled = document.getElementById('feeEn').checked;
+  
+  await sSet('friend_fee_percent', percent);
+  await sSet('friend_fee_enabled', enabled);
+  
+  toast('✅ تم حفظ إعدادات نسبة الصديق');
+  document.getElementById('modal').classList.remove('active');
+};
 async function pShop(){
   openM('<h3>🛒 المتجر</h3><div id="sc">⏳</div>');
   var s=await getDocs(collection(db,"products"));var list='';
