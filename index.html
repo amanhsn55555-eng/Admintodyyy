@@ -388,9 +388,93 @@ async function pUsers(){
   document.getElementById('uc').innerHTML=list||'<div class="empty-state"><p>لا أعضاء</p></div>';
 }
 window.tBan=async function(uid){var s=await getDoc(doc(db,"users",uid));await updateDoc(doc(db,"users",uid),{banned:!s.data().banned});toast('✅');pUsers()}
-window.delU=async function(uid){if(!confirm('حذف؟'))return;await deleteDoc(doc(db,"users",uid));await deleteDoc(doc(db,"resources",uid)).catch(function(){});toast('🗑️');pUsers()}
-
-// ========== إحصائيات (التعديل المطلوب) ==========
+window.delU = async function(uid) {
+  if (!confirm('⚠️ تحذير: سيتم حذف الحساب وجميع بياناته (منشورات، غرف، مشاريع، أرصدة، سجلات) بشكل نهائي! متأكد؟')) return;
+  
+  try {
+    var userDoc = await getDoc(doc(db, "users", uid));
+    if (!userDoc.exists()) { toast('الحساب غير موجود', false); pUsers(); return; }
+    var uData = userDoc.data();
+    var userId = uData.userId || uid.slice(0, 6);
+    
+    toast('🔄 جاري التدمير الشامل...');
+    
+    // 1. حذف المستخدم من users
+    await deleteDoc(doc(db, "users", uid));
+    
+    // 2. حذف من users_by_id
+    try { await deleteDoc(doc(db, "users_by_id", userId)); } catch(e) {}
+    
+    // 3. حذف الموارد
+    try { await deleteDoc(doc(db, "resources", uid)); } catch(e) {}
+    
+    // 4. حذف جميع منشوراته
+    var postsSnap = await getDocs(query(collection(db, "posts"), where("userId", "==", userId)));
+    var batch1 = writeBatch(db);
+    postsSnap.forEach(d => batch1.delete(d.ref));
+    await batch1.commit();
+    
+    // 5. حذف جميع قصصه
+    var storiesSnap = await getDocs(query(collection(db, "stories"), where("userId", "==", userId)));
+    var batch2 = writeBatch(db);
+    storiesSnap.forEach(d => batch2.delete(d.ref));
+    await batch2.commit();
+    
+    // 6. حذف مشاريعه
+    var projSnap = await getDocs(query(collection(db, "projects"), where("ownerId", "==", uid)));
+    var batch3 = writeBatch(db);
+    projSnap.forEach(d => batch3.delete(d.ref));
+    await batch3.commit();
+    
+    // 7. حذف بئر النفط
+    try { await deleteDoc(doc(db, "oil_wells", uid)); } catch(e) {}
+    
+    // 8. حذف الغرف اللي يملكها
+    var roomsSnap = await getDocs(query(collection(db, "rooms"), where("ownerId", "==", uid)));
+    var batch4 = writeBatch(db);
+    roomsSnap.forEach(d => batch4.delete(d.ref));
+    await batch4.commit();
+    
+    // 9. حذف محادثاته
+    var chatsSnap = await getDocs(query(collection(db, "chats"), where("participants", "array-contains", uid)));
+    var batch5 = writeBatch(db);
+    chatsSnap.forEach(d => batch5.delete(d.ref));
+    await batch5.commit();
+    
+    // 10. حذف طلبات السحب
+    var withdrawSnap = await getDocs(query(collection(db, "withdraw_requests"), where("uid", "==", uid)));
+    var batch6 = writeBatch(db);
+    withdrawSnap.forEach(d => batch6.delete(d.ref));
+    await batch6.commit();
+    
+    // 11. حذف سجل المشاهدات
+    try { await deleteDoc(doc(db, "viewed_posts", uid)); } catch(e) {}
+    
+    // 12. إزالة من قوائم المتابعة
+    var socialSnap = await getDoc(doc(db, "social", "followers"));
+    if (socialSnap.exists()) {
+      var allFollowers = socialSnap.data();
+      var updates = {};
+      for (var [followerUid, followingList] of Object.entries(allFollowers)) {
+        if (followingList && followingList.includes(userId)) {
+          updates[followerUid] = followingList.filter(id => id !== userId);
+        }
+      }
+      // حذف قائمة متابعته هو
+      updates[uid] = [];
+      
+      if (Object.keys(updates).length > 0) {
+        await setDoc(doc(db, "social", "followers"), updates, { merge: true });
+      }
+    }
+    
+    toast('✅ تم تدمير الحساب بالكامل');
+    pUsers(); // تحديث القائمة
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, false);
+    console.error(e);
+  }
+};
 async function pStats(){
   openM('<h3>📈 إحصائيات</h3><div style="margin-bottom:10px"><input id="stsSearch" placeholder="ابحث عن عضو..." style="width:100%;padding:10px;border-radius:14px;border:2px solid #e2e8f0"><button class="btn-save" onclick="ldStats()">🔍 عرض</button></div><div id="stsResult"></div>');
 }
