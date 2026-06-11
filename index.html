@@ -350,8 +350,70 @@ async function pWithdraw(){
   }
   document.getElementById('wdc').innerHTML=list;
 }
-window.accW=async function(id){if(!confirm('قبول؟'))return;await updateDoc(doc(db,"withdraw_requests",id),{status:'accepted',processedAt:Date.now()});toast('✅');pWithdraw()}
-window.rejW=async function(id){
+// ========== قبول طلب السحب مع إرسال إشعار للجميع ==========
+window.accW = async function(id) {
+    if (!confirm('✅ قبول طلب السحب؟ سيتم إشعار جميع المستخدمين.')) return;
+    
+    try {
+        // جلب بيانات الطلب
+        const reqDoc = await getDoc(doc(db, "withdraw_requests", id));
+        if (!reqDoc.exists()) {
+            toast('❌ الطلب غير موجود', false);
+            return;
+        }
+        
+        const req = reqDoc.data();
+        
+        // تحديث حالة الطلب إلى مقبول
+        await updateDoc(doc(db, "withdraw_requests", id), {
+            status: 'accepted',
+            processedAt: Date.now()
+        });
+        
+        // جلب بيانات المستخدم (صورته واسمه)
+        let userData = req.userData;
+        let userDoc = null;
+        
+        if (req.uid) {
+            try {
+                userDoc = await getDoc(doc(db, "users", req.uid));
+                if (userDoc.exists()) {
+                    userData = userDoc.data();
+                }
+            } catch(e) {}
+        }
+        
+        const username = userData?.username || req.userName || 'مستخدم';
+        const userId = userData?.userId || req.userId || (req.uid || '').slice(0, 6);
+        const amount = req.amount || 0;
+        
+        // إنشاء رسالة الإشعار
+        const message = `🔄 ${username} (#${userId}) قام بسحب ${amount.toLocaleString('ar-SA')} TMX`;
+        
+        // حفظ الإشعار في قاعدة البيانات ليظهر للجميع (حتى المتصلين لاحقاً)
+        await addDoc(collection(db, "global_withdraw_notifications"), {
+            message: message,
+            userId: req.uid,
+            username: username,
+            userAvatar: userData?.avatarUrl || null,
+            userEmoji: userData?.emoji || '👤',
+            userAvatarType: userData?.avatarType || 'emoji',
+            amount: amount,
+            timestamp: Date.now(),
+            readBy: []
+        });
+        
+        // ✅ إشعار نجاح
+        toast(`✅ تم قبول طلب ${username} وإرسال إشعار للجميع`);
+        
+        // تحديث قائمة الطلبات
+        pWithdraw();
+        
+    } catch(error) {
+        console.error('خطأ في قبول الطلب:', error);
+        toast('❌ حدث خطأ: ' + error.message, false);
+    }
+};window.rejW=async function(id){
   var reason=prompt('سبب الرفض:','');if(reason===null)return;
   var reqDoc=await getDoc(doc(db,"withdraw_requests",id));if(!reqDoc.exists())return;
   var req=reqDoc.data();if(req.uid&&req.amount)await updateDoc(doc(db,"resources",req.uid),{money:increment(req.amount)});
